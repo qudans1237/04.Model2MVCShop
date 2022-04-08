@@ -1,0 +1,490 @@
+04.Model2MVCShop(Business Logic,MyBatis Spring)
+
+=====================================================================
+src/main/resources/config/jdbc.properties
+
+jdbc.driverClassName=oracle.jdbc.driver.OracleDriver
+jdbc에 드라이버를 등록할때 어떠한 driverClass를 등록할 것인가 : oracle.jdbc.driver.OracleDriver
+
+jdbc.url=jdbc:oracle:thin:@127.0.0.1:1521:xe
+jdbc url을 설정할때 내가정한 jdbc Oracle에 url :jdbc:oracle:thin:@127.0.0.1:1521:xe
+
+jdbc.username=scott
+DB 접속 id : scott
+
+jdbc.password=tiger
+DB 접속 password : tiger
+
+jdbc.maxActive=10
+동시에 사용할 수 있는 최대 커넥션 개수(기본값: 8) : 10
+
+jdbc.initialSize=5
+BasicDataSource 클래스 생성 후 최초로 getConnection() 메서드를 호출할 때 커넥션 풀에 채워 넣을 커넥션 개수 : 5
+
+
+jdbc.properties에 역활은 DB접속 정보만을 갖고있는다.
+
+======================================================================
+src/main/resources/config/commonservice.xml
+--------------------------------
+<beans xmlns="http://www.springframework.org/schema/beans"
+		xmlns:context="http://www.springframework.org/schema/context"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation=
+				"http://www.springframework.org/schema/beans 
+				http://www.springframework.org/schema/beans/spring-beans.xsd
+				http://www.springframework.org/schema/context 
+				http://www.springframework.org/schema/context/spring-context.xsd">
+SpringFramwork 를 사용하기 위한 설정값
+
+--------------------------------
+<bean	id="propertyConfigurer"
+				class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="location" value="classpath:config/jdbc.properties" />
+	</bean>
+
+외부 설정 프로퍼티 설정 및 작업 : jdbc.properties 를 통해 DB접속 
+
+-------------------------------
+<bean id="dataSource"	
+				class="org.apache.commons.dbcp.BasicDataSource" >
+		<property name="driverClassName" value="${jdbc.driverClassName}" />
+        <property name="url" value="${jdbc.url}" />
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <property name="initialSize" value="${jdbc.initialSize}"/>
+        <property name="maxActive" value="${jdbc.maxActive}"/>
+	</bean>	
+
+jdbc.properties 를 통해 connectionPool 을 실행시키기기 
+
+------------------------------
+	<bean 	id="sqlSessionFactoryBean" 
+					class="org.mybatis.spring.SqlSessionFactoryBean" >
+		<property name="dataSource" ref="dataSource"/>
+		<property name="configLocation" value="classpath:sql/mybatis-config.xml"/>
+	</bean>
+
+SessionFactioryBean 생성 과정 dataSource bean 에서 connectionpool 받고 , mybatis-config.xml 에서 SQL문 정보 받아옴
+------------------------------
+	<bean		id="sqlSessionTemplate"		
+					class="org.mybatis.spring.SqlSessionTemplate" >		
+		<constructor-arg ref="sqlSessionFactoryBean"/>
+	</bean>			
+SqlSessionTemplate은 마이바티스 스프링 연동모듈의 핵심이다.
+SqlSessionTemplate은 SqlSession을 구현하고 코드에서 SqlSession를 대체하는 역할을 한다.
+SqlSessionTemplate 은 쓰레드에 안전하고 여러개의 DAO나 매퍼에서 공유할수 있다.
+-------------------------------
+<context:component-scan base-package="com.model2.mvc.service"/>
+빈으로 등록 될 준비를 마친 클래스들을 스캔하여, 빈으로 등록해주는 것이다.
+우리가 @Controller, @Service, @Component, @Repository 어노테이션을 붙인
+클래스들이 빈으로 등록 될 준비를 한 것이다.
+-------------------------------
+
+commonservice.xml 은 SpringFramwork에서 지원하는 Bean모듈 사용하기 위한것 framework쪽 기술 이다.
+
+=======================================================================================
+src/main/resources/sql/mybais-config.xml
+------------------------
+<settings>
+		<setting name="callSettersOnNulls" value="false"/>
+</settings>
+callSettersOnNulls 는 받은 value 값이 프로퍼타입 0 이면 읽지않는다.(원래 defalt 값으로 설정되있어서 안적어도 됨)
+
+-----------------------
+<typeAliases>
+		<typeAlias alias="user" type="com.model2.mvc.service.domain.User" />
+		<typeAlias alias="search" type="com.model2.mvc.common.Search" />
+	</typeAliases>
+typeAliases 는 java에서 import와 같은 역활
+-----------------------
+<mappers>
+		<mapper resource="sql/UserMapper.xml"/>
+</mappers>
+순전히 SQL문만 담은 것
+----------------------
+mybais-config.xml 역활은 SQL문만 연결해준다
+
+========================================================================================
+src/main/resources/sql/UserMapper.xml
+----------------------------------------
+	<resultMap id="userSelectMap" type="user">
+		<result property="userId" 			column="user_id" 			jdbcType="VARCHAR"/>
+		<result property="userName"	column="user_name" 		jdbcType="VARCHAR" />
+		<result property="password" 	column="password" 		jdbcType="VARCHAR" />
+		<result property="role" 				column="role" 					jdbcType="VARCHAR" />
+		<result property="ssn" 				column="ssn" 					jdbcType="VARCHAR" />
+		<result property="phone" 			column="cell_phone" 		jdbcType="VARCHAR" />
+		<result property="addr" 				column="addr" 					jdbcType="VARCHAR" />
+		<result property="email" 			column="email" 				jdbcType="NUMERIC"  />
+		<result property="regDate" 		column="reg_date" 			jdbcType="DATE" />
+	</resultMap>
+
+DB에서는 스네이크케이스 ex user_id domain객체에서는 camelcase 연결하는것 jdbcType은 Null값 처리를 위한것 "상수명"을 써줘서 처리한다.
+---------------------------------------
+아랫 부분들은 C.R.U.D 에 대한 SQL문들 및 TotalCount
+
+parameterType  구문에 전달될 파라미터의 패키지 경로를 포함한 전체 클래스명이나 별칭
+
+resultType 이 구문에 의해 리턴되는 기대 타입의 패키지 경로를 포함한 전체 클래스명이나 별칭. 
+collection인 경우 collection 타입 자체가 아닌 collection 이 포함된 타입이 될 수 있다. resultType이나 resultMap을 사용하라.
+
+resultMap  외부 resultMap resultMap의 참조명. 결과 맵은 마이바티스의 가장 강력한 기능이다.
+ resultType이나  resultMap을 사용하라.
+====================================================================================
+src/main/resources/log4j.properties
+
+디버깅을 자동으로 해주는 framework 사용처
+===================================================================================
+com.model2.mvc.service.user.impl.UserDaoImpl.java
+
+//==> 회원관리 DAO CRUD 구현
+@Repository("userDaoImpl")
+@Repository (퍼시스턴스 레이어, DB나 파일같은 외부 I/O 작업을 처리함)
+@Repository는 퍼시스턴스 레이아웃에서 자동 예외변환에 대한 표시로서 이미 지원된다 ("") 명시적으로 표현해준것
+
+public class UserDaoImpl implements UserDao{
+UserDao interface를 오버라이딩 해서 사용한다 / 도구처럼 쓸꺼다
+	
+	///Field
+	@Autowired : 필요한 의존 객체의 “타입"에 해당하는 빈을 찾아 주입한다.
+	Setter Dependency Injection :setter 메소드에 @Autowired annotation을 선언하여 주입받는 방법이다.(메소드 이름을 setter 대신에 다른 걸로 하여도 주입은 가능하지만 좋은 방법은 아니다) 
+	
+	@Qualifier("sqlSessionTemplate")
+	사용할 의존 객체를 선택할 수 있도록 해준다. = "sqlSessionTemplate"
+	설정에서 bean의 한정자 값을 설정한다.
+	@Autowired 어노테이션이 적용된 주입 대상에 @Qualifier 어노테이션을 설정한다.
+	이때 @Qualifier의 값으로 앞서 설정한 한정자를 사용한다.	
+
+	@Autowired 어노테이션 적용시 의존 객체를 찾는 순서
+	타입이 같은 bean 객체를 검색한다. => 1개이면 해당 bean 객체를 사용한다.
+	@Qualifier가 명시되어 있는 경우 같은 값을 갖는 bean 객체여야 한다.
+	타입이 같은 bean 객체가 두개 이상이고, @Qualifier가 없는 경우 이름이 같은 빈 객체를 찾는다.
+	찾은경우 그 객체를 사용
+	타입이 같은 bean 객체가 두개 이상이면, @Qualifier로 지정한 bean 객체를 찾는다.
+	찾은경우 그 객체를 사용
+	위 경우 모두 해당되지 않으면 컨테이너가 Exception을 발생시킨다.
+	
+
+	private SqlSession sqlSession;
+	public void setSqlSession(SqlSession sqlSession) {
+		this.sqlSession = sqlSession;
+	}
+	field SqlSession 에 @qualifier("sqlSessionTemplate")를 걸어놈으로써 
+	<bean 	id="sqlSessionFactoryBean" >>><property name="configLocation" value="classpath:sql/mybatis-config.xml"/>
+	를 통해 SQL에 접근한다
+
+	///Constructor
+	public UserDaoImpl() {
+		System.out.println(this.getClass());
+	}
+
+	///Method
+	public void addUser(User user) throws Exception {
+		sqlSession.insert("UserMapper.addUser", user);
+	}
+
+	public User getUser(String userId) throws Exception {
+		return sqlSession.selectOne("UserMapper.getUser", userId);
+	}
+	
+	public void updateUser(User user) throws Exception {
+		sqlSession.update("UserMapper.updateUser", user);
+	}
+
+	public List<User> getUserList(Search search) throws Exception {
+		return sqlSession.selectList("UserMapper.getUserList", search);
+	}
+
+	// 게시판 Page 처리를 위한 전체 Row(totalCount)  return
+	public int getTotalCount(Search search) throws Exception {
+		return sqlSession.selectOne("UserMapper.getTotalCount", search);
+	}
+	접근한 SqlSession 으로 SQL문을 사용하여 CRUD가 구현이 가능해졌다
+
+}
+
+================================================================================================
+com.model2.mvc.service.user.UserDao.java(interface)
+//==> 회원관리에서 CRUD 추상화/캡슐화한 DAO Interface Definition
+public interface UserDao {
+	
+	// INSERT
+	public void addUser(User user) throws Exception ;
+
+	// SELECT ONE
+	public User getUser(String userId) throws Exception ;
+
+	// SELECT LIST
+	public List<User> getUserList(Search search) throws Exception ;
+
+	// UPDATE
+	public void updateUser(User user) throws Exception ;
+	
+	// 게시판 Page 처리를 위한 전체Row(totalCount)  return
+	public int getTotalCount(Search search) throws Exception ;
+	
+}
+====================================================================
+com.model2.mvc.service.user.impl.UserServiceImpl.java
+
+UserDao에게 일을 시키기 위한 impl.java 파일 
+
+//==> 회원관리 서비스 구현
+@Service("userServiceImpl")
+@Service (서비스 레이어, 내부에서 자바 로직을 처리함)
+
+public class UserServiceImpl implements UserService{
+UserService interface를 오버라이딩 해서 사용한다 / 도구처럼 쓸꺼다
+	///Field
+	@Autowired
+	@Qualifier("userDaoImpl") (map key:value 느낌으로 @Repository(userDaoImpl) 참조하는것
+	사용할 의존 객체를 선택할 수 있도록 해준다. = "userDaoImpl"
+	@Autowired 어노테이션 적용시 의존 객체를 찾는 순서
+	타입이 같은 bean 객체를 검색한다. => 1개이면 해당 bean 객체를 사용한다.
+	@Qualifier가 명시되어 있는 경우 같은 값을 갖는 bean 객체여야 한다.
+	타입이 같은 bean 객체가 두개 이상이고, @Qualifier가 없는 경우 이름이 같은 빈 객체를 찾는다.
+	찾은경우 그 객체를 사용
+	타입이 같은 bean 객체가 두개 이상이면, @Qualifier로 지정한 bean 객체를 찾는다.
+	찾은경우 그 객체를 사용
+	위 경우 모두 해당되지 않으면 컨테이너가 Exception을 발생시킨다.	
+
+	private UserDao userDao;
+	public void setUserDao(UserDao userDao) {
+		this.userDao = userDao;
+	}
+	
+	///Constructor
+	public UserServiceImpl() {
+		System.out.println(this.getClass());
+	}
+
+	///Method
+	public void addUser(User user) throws Exception {
+		userDao.addUser(user);
+	}
+
+	public User getUser(String userId) throws Exception {
+		return userDao.getUser(userId);
+	}
+
+	public Map<String , Object > getUserList(Search search) throws Exception {
+		List<User> list= userDao.getUserList(search);
+		int totalCount = userDao.getTotalCount(search);
+		
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("list", list );
+		map.put("totalCount", new Integer(totalCount));
+		
+		return map;
+	}
+
+	public void updateUser(User user) throws Exception {
+		userDao.updateUser(user);
+	}
+
+	public boolean checkDuplication(String userId) throws Exception {
+		boolean result=true;
+		User user=userDao.getUser(userId);
+		if(user != null) {
+			result=false;
+		}
+		return result;
+	}
+}
+====================================================================
+com.model2.mvc.service.user.UserService.java
+
+//==> 회원관리에서 서비스할 내용 추상화/캡슐화한 Service  Interface Definition  
+public interface UserService {
+	
+	// 회원가입
+	public void addUser(User user) throws Exception;
+	
+	// 내정보확인 / 로그인
+	public User getUser(String userId) throws Exception;
+	
+	// 회원정보리스트 
+	public Map<String , Object> getUserList(Search search) throws Exception;
+	
+	// 회원정보수정
+	public void updateUser(User user) throws Exception;
+	
+	// 회원 ID 중복 확인
+	public boolean checkDuplication(String userId) throws Exception;
+	
+}
+======================================================================
+com.model2.mvc.common.Search.java
+
+//==>리스트화면을 모델링(추상화/캡슐화)한 Bean 
+public class Search {
+	
+	///Field
+	private int currentPage;
+	private String searchCondition;
+	private String searchKeyword;
+	private int pageSize;
+	//==> 리스트화면 currentPage에 해당하는 회원정보를 ROWNUM 사용 SELECT 위해 추가된 Field 
+	//==> UserMapper.xml 의 
+	//==> <select  id="getUserList"  parameterType="search"	resultMap="userSelectMap">
+	//==> 참조
+	private int endRowNum;
+	private int startRowNum;
+	
+	///Constructor
+	public Search() {
+	}
+	
+	///Method
+	public int getPageSize() {
+		return pageSize;
+	}
+	public void setPageSize(int paseSize) {
+		this.pageSize = paseSize;
+	}
+	
+	public int getCurrentPage() {
+		return currentPage;
+	}
+	public void setCurrentPage(int currentPage) {
+		this.currentPage = currentPage;
+	}
+
+	public String getSearchCondition() {
+		return searchCondition;
+	}
+	public void setSearchCondition(String searchCondition) {
+		this.searchCondition = searchCondition;
+	}
+	
+	public String getSearchKeyword() {
+		return searchKeyword;
+	}
+	public void setSearchKeyword(String searchKeyword) {
+		this.searchKeyword = searchKeyword;
+	}
+	
+	//==> Select Query 시 ROWNUM 마지막 값 
+	public int getEndRowNum() {
+		return getCurrentPage()*getPageSize();
+	}
+	//==> Select Query 시 ROWNUM 시작 값
+	public int getStartRowNum() {
+		return (getCurrentPage()-1)*getPageSize()+1;
+	}
+
+	@Override
+	public String toString() {
+		return "Search [currentPage=" + currentPage + ", searchCondition="
+				+ searchCondition + ", searchKeyword=" + searchKeyword
+				+ ", pageSize=" + pageSize + ", endRowNum=" + endRowNum
+				+ ", startRowNum=" + startRowNum + "]";
+	}
+}
+==============================================================================
+com.model2.mvc.service.domain.User
+
+//==>회원정보를 모델링(추상화/캡슐화)한 Bean
+public class User {
+	
+	///Field
+	private String userId;
+	private String userName;
+	private String password;
+	private String role;
+	private String ssn;
+	private String phone;
+	private String addr;
+	private String email;
+	private Date regDate;
+	/////////////// EL 적용 위해 추가된 Field ///////////
+	private String phone1;
+	private String phone2;
+	private String phone3;
+
+	
+	
+	///Constructor
+	public User(){
+	}
+	
+	///Method 
+	public String getUserId() {
+		return userId;
+	}
+	public void setUserId(String userId) {
+		this.userId = userId;
+	}
+	public String getUserName() {
+		return userName;
+	}
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+	public String getPassword() {
+		return password;
+	}
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	public String getRole() {
+		return role;
+	}
+	public void setRole(String role) {
+		this.role = role;
+	}
+	public String getSsn() {
+		return ssn;
+	}
+	public void setSsn(String ssn) {
+		this.ssn = ssn;
+	}
+	public String getPhone() {
+		return phone;
+	}
+	public void setPhone(String phone) {
+		this.phone = phone;
+		/////////////// EL 적용 위해 추가 ///////////
+		if(phone != null && phone.length() !=0 ){
+			phone1 = phone.split("-")[0];
+			phone2 = phone.split("-")[1];
+			phone3 = phone.split("-")[2];
+		}
+	}
+	public String getAddr() {
+		return addr;
+	}
+	public void setAddr(String addr) {
+		this.addr = addr;
+	}
+	public String getEmail() {
+		return email;
+	}
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	public Date getRegDate() {
+		return regDate;
+	}
+	public void setRegDate(Date regDate) {
+		this.regDate = regDate;
+	}
+	/////////////// EL 적용 위해 추가된 getter Method ///////////
+	public String getPhone1() {
+		return phone1;
+	}
+	public String getPhone2() {
+		return phone2;
+	}
+	public String getPhone3() {
+		return phone3;
+	}
+
+	@Override
+	public String toString() {
+		return "UserVO : [userId] "+userId+" [userName] "+userName+" [password] "+password+" [role] "+ role
+			+" [ssn] "+ssn+" [phone] "+phone+" [email] "+email+" [regDate] "+regDate;
+	}
+}
+============================================================
