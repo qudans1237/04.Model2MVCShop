@@ -102,7 +102,7 @@ public class ProductServiceTest {
 	}
 	
 	//@Test
-	public void testGetUserListAll() throws Exception{
+	public void testGetProductListAll() throws Exception{
 		
 		Search search = new Search();
 		search.setCurrentPage(1);
